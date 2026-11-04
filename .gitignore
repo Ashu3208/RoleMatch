@@ -1,0 +1,21 @@
+# Python and environments
+__pycache__/
+*.py[cod]
+build/
+dist/
+wheels/
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Local resumes, job descriptions, and generated reports
+data/*
+!data/.gitkeep

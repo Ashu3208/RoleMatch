@@ -4,7 +4,7 @@ Evidence-based resume and job description matching.
 
 ## Current status
 
-Includes Pydantic schemas for resumes and job descriptions, plus a reusable Groq function that requests JSON output and returns a Python dictionary. Resume parsing, matching, and scoring are not implemented.
+Includes PDF and DOCX text extraction, Pydantic schemas for resumes and job descriptions, and a reusable Groq JSON client. Structured extraction, matching, and scoring are not implemented.
 
 ## Setup
 
@@ -18,3 +18,8 @@ uv sync
 
 For LLM calls, copy `.env.example` to `.env` and set `GROQ_API_KEY`.
 
+## Tests
+
+```bash
+uv run python -m unittest discover -s tests -v
+```

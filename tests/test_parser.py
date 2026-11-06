@@ -40,7 +40,7 @@ class ParserTests(unittest.TestCase):
             table.cell(1, 0).text = "Python"
             table.cell(1, 1).text = "Two years"
             document.add_paragraph("Projects")
-            document.save(path)
+            document.save(str(path))
             self.assertEqual(
                 read_document(str(path)),
                 "Ashutosh\nSkill\tExperience\nPython\tTwo years\nProjects",
@@ -49,7 +49,7 @@ class ParserTests(unittest.TestCase):
     def test_empty_docx_returns_empty_string(self):
         with TemporaryDirectory() as directory:
             path = Path(directory) / "empty.docx"
-            Document().save(path)
+            Document().save(str(path))
             self.assertEqual(read_document(path), "")
 
     def test_unsupported_extensions(self):

@@ -1,15 +1,18 @@
-import json
+import sys
 from collections.abc import Callable
 from pathlib import Path
-from time import sleep
-from typing import Any
+from time import perf_counter, sleep
 
 from pydantic import BaseModel
 
 from rolematch.extractor import extract_job_description, extract_resume
 from rolematch.parser import read_document
 from rolematch.schemas import JobDescription, Resume
-from rolematch.storage import get_sha256_hash, load_extraction, save_extraction
+from rolematch.storage import load_extraction, save_extraction
+
+
+def report_progress(message: str) -> None:
+    print(message, file=sys.stderr, flush=True)
 
 
 def extract_directory(
@@ -19,54 +22,72 @@ def extract_directory(
     output_directory: Path,
     schema: type[BaseModel],
     include_text: bool = False,
-) -> list[dict[str, Any]]:
+) -> None:
     """Extract supported files recursively, skipping hidden and empty inputs."""
     extensions = {".pdf", ".docx"}
     if include_text:
         extensions.add(".txt")
 
-    results = []
+    report_progress(f"Scanning {directory}...")
+    if not directory.is_dir():
+        report_progress(f"Skipping {directory}: input directory not found.")
+        return
+
+    files = [
+        path for path in sorted(directory.rglob("*"))
+        if path.is_file()
+        and not any(part.startswith(".") for part in path.relative_to(directory).parts)
+        and path.suffix.lower() in extensions
+    ]
+    report_progress(f"Found {len(files)} supported files in {directory}.")
+    started = perf_counter()
     made_request = False
-    for file_path in sorted(directory.rglob("*")):
-        if not file_path.is_file():
-            continue
-        if any(part.startswith(".") for part in file_path.relative_to(directory).parts):
-            continue
-        if file_path.suffix.lower() not in extensions:
-            continue
+    extracted = cached = empty = 0
+    for index, file_path in enumerate(files, start=1):
+        label = f"[{index}/{len(files)}] {file_path.relative_to(directory)}"
+        report_progress(f"{label}: reading text...")
 
         if file_path.suffix.lower() == ".txt":
             text = file_path.read_text(encoding="utf-8")
         else:
-            text = read_document(file_path)
+            text = read_document(file_path) # extracts the text from pdf/doc
         if not text.strip():
+            empty += 1
+            report_progress(f"{label}: skipped (no text).")
             continue
 
+        report_progress(f"{label}: checking cache...")
         result = load_extraction(text, output_directory, schema)
         if result is None:
             # Cache hits need no delay. API limits also depend on token usage.
             if made_request:
+                report_progress(f"{label}: waiting 5 seconds before next request...")
                 sleep(5)
-            result = schema.model_validate(extractor(text).model_dump())
+            report_progress(f"{label}: calling LLM and validating response...")
+            result = extractor(text)
             made_request = True
-            save_extraction(text, file_path, result, output_directory)
-        results.append({
-            "source": str(file_path),
-            "text_hash": get_sha256_hash(text),
-            "data": result.model_dump(),
-        })
+            report_progress(f"{label}: saving extraction...")
+            saved_path = save_extraction(text, file_path, result, output_directory)
+            extracted += 1
+            report_progress(f"{label}: saved to {saved_path}.")
+        else:
+            cached += 1
+            report_progress(f"{label}: using cached extraction.")
 
-    return results
+    elapsed = perf_counter() - started
+    report_progress(
+        f"Finished {directory}: {extracted} newly extracted, {cached} cached, "
+        f"{empty} empty; {elapsed:.1f}s elapsed."
+    )
 
 
 def main() -> None:
-    resumes = extract_directory(
+    extract_directory(
         Path("data/Resume"), extract_resume,
         output_directory=Path("data/extraction/Resume"), schema=Resume,
     )
-    job_descriptions = extract_directory(
+    extract_directory(
         Path("data/JD"), extract_job_description,
         output_directory=Path("data/extraction/JD"), schema=JobDescription,
         include_text=True,
     )
-    print(json.dumps({"resumes": resumes, "job_descriptions": job_descriptions}, indent=2))

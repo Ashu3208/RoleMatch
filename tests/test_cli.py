@@ -1,5 +1,5 @@
 import json
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -13,6 +13,32 @@ from rolematch.storage import get_sha256_hash
 
 
 class CliTests(unittest.TestCase):
+    @patch("rolematch.cli.read_document")
+    def test_progress_reports_work_without_polluting_stdout(self, read):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name in ["a.pdf", "b.docx", "empty.pdf"]:
+                (root / name).touch()
+            read.side_effect = lambda path: "" if path.name == "empty.pdf" else "Same resume"
+            extractor = Mock(return_value=Resume(name="Ashutosh"))
+            stdout, stderr = StringIO(), StringIO()
+
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                extract_directory(
+                    root, extractor, output_directory=root / "cache", schema=Resume
+                )
+
+            self.assertEqual(stdout.getvalue(), "")
+            progress = stderr.getvalue()
+            self.assertIn("[1/3] a.pdf: reading text", progress)
+            self.assertIn("calling LLM", progress)
+            self.assertIn("saving extraction", progress)
+            self.assertIn("[2/3] b.docx: using cached extraction", progress)
+            self.assertIn("[3/3] empty.pdf: skipped (no text)", progress)
+            self.assertIn("1 newly extracted, 1 cached, 1 empty", progress)
+            self.assertEqual(len(list((root / "cache").glob("*.json"))), 1)
+            extractor.assert_called_once_with("Same resume")
+
     @patch("rolematch.cli.sleep")
     @patch("rolematch.cli.read_document")
     def test_recursive_extraction_skips_hidden_unsupported_and_empty_files(self, read, sleep):
@@ -25,16 +51,20 @@ class CliTests(unittest.TestCase):
             read.side_effect = lambda path: " " if path.name == "empty.pdf" else f"Resume text: {path.name}"
             extractor = Mock(return_value=Resume(name="Ashutosh"))
 
-            results = extract_directory(
+            extract_directory(
                 root, extractor, output_directory=root / "extracted", schema=Resume
             )
 
-            self.assertEqual(len(results), 2)
+            records = [
+                json.loads(path.read_text(encoding="utf-8"))
+                for path in (root / "extracted").glob("*.json")
+            ]
+            self.assertEqual(len(records), 2)
             self.assertEqual(extractor.call_count, 2)
             self.assertEqual(read.call_count, 3)
-            self.assertTrue(all(result["data"]["name"] == "Ashutosh" for result in results))
+            self.assertTrue(all(record["data"]["name"] == "Ashutosh" for record in records))
             self.assertEqual(
-                {Path(result["source"]).relative_to(root).as_posix() for result in results},
+                {Path(record["source"]).relative_to(root).as_posix() for record in records},
                 {"resume.PDF", "nested/resume.docx"},
             )
             sleep.assert_called_once_with(5)
@@ -47,38 +77,35 @@ class CliTests(unittest.TestCase):
             path.write_text("Python engineer required", encoding="utf-8")
             extractor = Mock(return_value=JobDescription(title="Engineer"))
 
-            results = extract_directory(
+            extract_directory(
                 path.parent, extractor, output_directory=path.parent / "extracted",
                 schema=JobDescription, include_text=True,
             )
 
             extractor.assert_called_once_with("Python engineer required")
-            self.assertEqual(results[0]["data"]["title"], "Engineer")
+            cache = path.parent / "extracted" / f"{get_sha256_hash('Python engineer required')}.json"
+            self.assertEqual(json.loads(cache.read_text(encoding="utf-8"))["data"]["title"], "Engineer")
             read.assert_not_called()
             sleep.assert_not_called()
 
-    def test_missing_directory_returns_no_results(self):
+    def test_missing_directory_is_skipped(self):
         with TemporaryDirectory() as directory:
             extractor = Mock()
-            self.assertEqual(extract_directory(
+            self.assertIsNone(extract_directory(
                 Path(directory) / "missing", extractor,
                 output_directory=Path(directory) / "extracted", schema=Resume,
-            ), [])
+            ))
             extractor.assert_not_called()
+            self.assertFalse((Path(directory) / "extracted").exists())
 
     @patch("rolematch.cli.sleep")
     @patch("rolematch.cli.extract_directory")
-    def test_main_routes_both_inputs_and_prints_valid_json(self, extract, sleep):
-        extract.side_effect = [
-            [{"source": "data/Resume/resume.pdf", "data": {"name": "Ashutosh"}}],
-            [{"source": "data/JD/job.txt", "data": {"title": "Engineer"}}],
-        ]
+    def test_main_routes_both_inputs_without_printing_json(self, extract, sleep):
+        extract.return_value = None
         output = StringIO()
         with redirect_stdout(output):
             main()
-        result = json.loads(output.getvalue())
-        self.assertEqual(result["resumes"][0]["data"]["name"], "Ashutosh")
-        self.assertEqual(result["job_descriptions"][0]["data"]["title"], "Engineer")
+        self.assertEqual(output.getvalue(), "")
         self.assertEqual(extract.call_args_list[0].args, (Path("data/Resume"), extract_resume))
         self.assertEqual(extract.call_args_list[1].args, (Path("data/JD"), extract_job_description))
         self.assertEqual(extract.call_args_list[0].kwargs["output_directory"], Path("data/extraction/Resume"))
@@ -99,14 +126,14 @@ class CliTests(unittest.TestCase):
             output = root / "extracted"
             extractor = Mock(return_value=Resume(name="Ashutosh"))
 
-            first = extract_directory(inputs, extractor, output_directory=output, schema=Resume)
-            second = extract_directory(inputs, extractor, output_directory=output, schema=Resume)
+            extract_directory(inputs, extractor, output_directory=output, schema=Resume)
+            cache = output / f"{get_sha256_hash('Same resume text')}.json"
+            saved_bytes = cache.read_bytes()
+            extract_directory(inputs, extractor, output_directory=output, schema=Resume)
 
             extractor.assert_called_once_with("Same resume text")
-            self.assertEqual(len(first), 2)
-            self.assertEqual(first, second)
-            self.assertNotEqual(first[0]["source"], first[1]["source"])
-            self.assertEqual(first[0]["text_hash"], first[1]["text_hash"])
+            self.assertEqual(cache.read_bytes(), saved_bytes)
+            self.assertEqual(json.loads(saved_bytes)["data"]["name"], "Ashutosh")
             self.assertEqual(len(list(output.glob("*.json"))), 1)
             sleep.assert_not_called()
 
@@ -137,10 +164,9 @@ class CliTests(unittest.TestCase):
             cache.write_text("broken JSON", encoding="utf-8")
             extractor = Mock(return_value=Resume(name="Ashutosh"))
 
-            results = extract_directory(root, extractor, output_directory=output, schema=Resume)
+            extract_directory(root, extractor, output_directory=output, schema=Resume)
 
             extractor.assert_called_once()
-            self.assertEqual(results[0]["data"]["name"], "Ashutosh")
             self.assertEqual(json.loads(cache.read_text())["data"]["name"], "Ashutosh")
 
     @patch("rolematch.cli.read_document", return_value="Resume text")

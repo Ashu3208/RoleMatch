@@ -24,7 +24,7 @@ Place resumes in `data/Resume/` and job descriptions in `data/JD/`, then run:
 uv run rolematch
 ```
 
-Reads subdirectories and prints JSON with each result's source path. Hidden, unsupported, and empty files are skipped.
+Reads subdirectories and shows progress and per-directory summaries. Hidden, unsupported, and empty files are skipped. Extracted JSON is saved to disk rather than printed.
 
 Extractions are saved as `<text_hash>.json` in `data/extraction/Resume/` and `data/extraction/JD/`. Unchanged text reuses valid saved data without an LLM call. Delete affected cache files after changing prompts or models to force re-extraction.
 

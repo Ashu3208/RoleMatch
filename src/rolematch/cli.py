@@ -8,12 +8,16 @@ from pydantic import BaseModel
 
 from rolematch.extractor import extract_job_description, extract_resume
 from rolematch.parser import read_document
+from rolematch.schemas import JobDescription, Resume
+from rolematch.storage import get_sha256_hash, load_extraction, save_extraction
 
 
 def extract_directory(
     directory: Path,
     extractor: Callable[[str], BaseModel],
     *,
+    output_directory: Path,
+    schema: type[BaseModel],
     include_text: bool = False,
 ) -> list[dict[str, Any]]:
     """Extract supported files recursively, skipping hidden and empty inputs."""
@@ -22,6 +26,7 @@ def extract_directory(
         extensions.add(".txt")
 
     results = []
+    made_request = False
     for file_path in sorted(directory.rglob("*")):
         if not file_path.is_file():
             continue
@@ -37,20 +42,31 @@ def extract_directory(
         if not text.strip():
             continue
 
-        # Space requests apart; API rate limits also depend on token usage.
-        if results:
-            sleep(5)
-        result = extractor(text)
-        results.append({"source": str(file_path), "data": result.model_dump()})
+        result = load_extraction(text, output_directory, schema)
+        if result is None:
+            # Cache hits need no delay. API limits also depend on token usage.
+            if made_request:
+                sleep(5)
+            result = schema.model_validate(extractor(text).model_dump())
+            made_request = True
+            save_extraction(text, file_path, result, output_directory)
+        results.append({
+            "source": str(file_path),
+            "text_hash": get_sha256_hash(text),
+            "data": result.model_dump(),
+        })
 
     return results
 
 
 def main() -> None:
-    resumes = extract_directory(Path("data/Resume"), extract_resume)
-    if resumes:
-        sleep(5)
+    resumes = extract_directory(
+        Path("data/Resume"), extract_resume,
+        output_directory=Path("data/extraction/Resume"), schema=Resume,
+    )
     job_descriptions = extract_directory(
-        Path("data/JD"), extract_job_description, include_text=True
+        Path("data/JD"), extract_job_description,
+        output_directory=Path("data/extraction/JD"), schema=JobDescription,
+        include_text=True,
     )
     print(json.dumps({"resumes": resumes, "job_descriptions": job_descriptions}, indent=2))

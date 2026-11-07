@@ -26,6 +26,8 @@ uv run rolematch
 
 Reads subdirectories and prints JSON with each result's source path. Hidden, unsupported, and empty files are skipped.
 
+Extractions are saved as `<text_hash>.json` in `data/extraction/Resume/` and `data/extraction/JD/`. Unchanged text reuses valid saved data without an LLM call. Delete affected cache files after changing prompts or models to force re-extraction.
+
 ## Tests
 
 ```bash

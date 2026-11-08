@@ -1,31 +1,51 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from types import SimpleNamespace
 import unittest
-from unittest.mock import Mock, patch
 
+import pymupdf
 from docx import Document
-from pypdf import PdfWriter
 
 from rolematch.parser import read_document, read_pdf
 
 
 class ParserTests(unittest.TestCase):
     def test_pdf_includes_all_pages_and_handles_missing_text(self):
-        pages = [Mock(), Mock(), Mock()]
-        for page, text in zip(pages, ["Experience", None, "Skills"]):
-            page.extract_text.return_value = text
-        with patch("rolematch.parser.PdfReader", return_value=SimpleNamespace(pages=pages)):
-            self.assertEqual(read_document("resume.PDF"), "Experience\n\n\n\nSkills")
-        for page in pages:
-            page.extract_text.assert_called_once_with()
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "resume.PDF"
+            with pymupdf.open() as document:
+                document.new_page().insert_text((50, 50), "Experience")
+                document.new_page()
+                document.new_page().insert_text((50, 50), "Skills")
+                document.save(path)
+
+            text = read_document(path)
+
+            self.assertEqual(text.split(), ["Experience", "Skills"])
+
+    def test_pdf_sorts_later_inserted_text_into_visual_position(self):
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "edited.pdf"
+            with pymupdf.open() as document:
+                page = document.new_page()
+                page.insert_text((50, 50), "RoleMatch")
+                page.insert_text((50, 150), "Mess Automation")
+                page.insert_text((50, 230), "Education")
+                # A later PDF edit adds this bullet above the other sections.
+                page.insert_text((50, 80), "Implemented PDF extraction")
+                document.save(path)
+
+            text = read_pdf(path)
+
+            self.assertLess(text.index("RoleMatch"), text.index("Implemented PDF extraction"))
+            self.assertLess(text.index("Implemented PDF extraction"), text.index("Mess Automation"))
+            self.assertLess(text.index("Mess Automation"), text.index("Education"))
 
     def test_blank_pdf_returns_empty_string(self):
         with TemporaryDirectory() as directory:
             path = Path(directory) / "blank.pdf"
-            writer = PdfWriter()
-            writer.add_blank_page(width=612, height=792)
-            writer.write(path)
+            with pymupdf.open() as document:
+                document.new_page(width=612, height=792)
+                document.save(path)
             self.assertEqual(read_pdf(path), "")
 
     def test_docx_preserves_paragraph_and_table_order(self):

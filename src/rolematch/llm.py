@@ -34,6 +34,7 @@ def call_llm(
                 {"role": "user", "content": user_prompt},
             ],
             response_format={"type": "json_object"},
+            max_completion_tokens=8192,
             temperature=0,
         )
 

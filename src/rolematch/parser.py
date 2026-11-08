@@ -1,13 +1,17 @@
 from pathlib import Path
+from typing import cast
+
+import pymupdf
 from docx import Document
 from docx.text.paragraph import Paragraph
-from pypdf import PdfReader
 
 
 def read_pdf(path: Path) -> str:
-    """Extract PDF text, returning an empty string if no text is available."""
-    reader = PdfReader(path)
-    text = "\n\n".join(page.extract_text() or "" for page in reader.pages).strip()
+    """Extract PDF text in positional order, returning an empty string if empty."""
+    with pymupdf.open(path) as document:
+        text = "\n\n".join(
+            cast(str, page.get_text("text", sort=True)) for page in document
+        ).strip()
 
     return text
 

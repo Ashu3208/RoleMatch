@@ -4,7 +4,9 @@ Evidence-based resume and job description matching.
 
 ## Current status
 
-Extracts structured resume and job-description data using Groq and Pydantic validation. Uses PyMuPDF to extract PDF text in positional order; also supports DOCX documents and plain-text job descriptions. Matching and scoring are not implemented.
+Extracts structured resume and job-description data using Groq and Pydantic validation. Uses PyMuPDF for PDFs and also supports DOCX documents and plain-text JDs. Evidence-backed matching is implemented as a function; CLI integration and scoring are pending.
+
+See [ROADMAP.md](ROADMAP.md) for completed work, the current task, and upcoming milestones, including the personal knowledge hub and RAG-assisted resume suggestions.
 
 ## Setup
 

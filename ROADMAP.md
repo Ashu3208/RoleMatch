@@ -24,21 +24,21 @@ flowchart LR
 
 The frontend is on `frontend` and uses sample data. Matching exists on `main` but is not connected to the CLI yet.
 
-## Now: explainable scoring
+## Scoring — implemented
 
-- [ ] Calculate a score from the requirement assessments.
-- [ ] Show how required and preferred criteria contribute to the result.
-- [ ] Verify full, partial, missing-evidence, and empty-input cases.
+- [x] Calculate a score from the requirement assessments.
+- [x] Apply explicit required/preferred weights and return earned and possible points.
+- [x] Verify full, partial, missing-evidence, and empty-input cases.
 
-The scoring implementation and test files have been created but are empty.
+The scorer returns a percentage rounded to two decimals, or no score when there are no assessments.
 
 ## Next milestones
 
-### 1. Complete the comparison workflow
+### 1. Complete the comparison workflow — next
 
 - [ ] Try matching with real resumes and JDs and inspect the evidence.
 - [ ] Connect extraction, matching, and scoring for one pair, then multiple pairs.
-- [ ] Save comparison reports and reuse results when appropriate.
+- [ ] Save comparison reports with requirement-level and required/preferred score breakdowns; reuse results when appropriate.
 - [ ] Keep requirement references clear and avoid counting the same condition twice.
 
 ### 2. Connect the frontend

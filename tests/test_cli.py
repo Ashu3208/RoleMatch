@@ -6,7 +6,7 @@ from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import Mock, patch
 
-from rolematch.cli import extract_directory, main
+from rolematch.cli import compare_pairs, extract_directory, main
 from rolematch.extractor import extract_job_description, extract_resume
 from rolematch.schemas import JobDescription, Resume
 from rolematch.storage import get_sha256_hash
@@ -91,17 +91,20 @@ class CliTests(unittest.TestCase):
     def test_missing_directory_is_skipped(self):
         with TemporaryDirectory() as directory:
             extractor = Mock()
-            self.assertIsNone(extract_directory(
+            self.assertEqual(extract_directory(
                 Path(directory) / "missing", extractor,
                 output_directory=Path(directory) / "extracted", schema=Resume,
-            ))
+            ), [])
             extractor.assert_not_called()
             self.assertFalse((Path(directory) / "extracted").exists())
 
+    @patch("rolematch.cli.compare_pairs")
     @patch("rolematch.cli.sleep")
     @patch("rolematch.cli.extract_directory")
-    def test_main_routes_both_inputs_without_printing_json(self, extract, sleep):
-        extract.return_value = None
+    def test_main_routes_both_inputs_without_printing_json(self, extract, sleep, comparisons):
+        resume_paths = [Path("resume-cache.json")]
+        jd_paths = [Path("jd-cache.json")]
+        extract.side_effect = [resume_paths, jd_paths]
         output = StringIO()
         with redirect_stdout(output):
             main()
@@ -113,6 +116,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(extract.call_args_list[1].kwargs["output_directory"], Path("data/extraction/JD"))
         self.assertIs(extract.call_args_list[1].kwargs["schema"], JobDescription)
         self.assertTrue(extract.call_args_list[1].kwargs["include_text"])
+        comparisons.assert_called_once_with(resume_paths, jd_paths, Path("data/reports"))
 
     @patch("rolematch.cli.sleep")
     @patch("rolematch.cli.read_document", return_value="Same resume text")
@@ -126,16 +130,68 @@ class CliTests(unittest.TestCase):
             output = root / "extracted"
             extractor = Mock(return_value=Resume(name="Ashutosh"))
 
-            extract_directory(inputs, extractor, output_directory=output, schema=Resume)
+            first_paths = extract_directory(inputs, extractor, output_directory=output, schema=Resume)
             cache = output / f"{get_sha256_hash('Same resume text')}.json"
             saved_bytes = cache.read_bytes()
-            extract_directory(inputs, extractor, output_directory=output, schema=Resume)
+            second_paths = extract_directory(inputs, extractor, output_directory=output, schema=Resume)
 
             extractor.assert_called_once_with("Same resume text")
             self.assertEqual(cache.read_bytes(), saved_bytes)
             self.assertEqual(json.loads(saved_bytes)["data"]["name"], "Ashutosh")
             self.assertEqual(len(list(output.glob("*.json"))), 1)
+            self.assertEqual(first_paths, [cache])
+            self.assertEqual(second_paths, [cache])
             sleep.assert_not_called()
+
+    @patch("rolematch.cli.read_document", return_value="Current resume")
+    def test_only_current_cache_paths_are_returned(self, read):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            inputs, output = root / "inputs", root / "extracted"
+            inputs.mkdir()
+            output.mkdir()
+            (inputs / "resume.pdf").touch()
+            (output / "old-version.json").write_text("{}", encoding="utf-8")
+            extractor = Mock(return_value=Resume(name="Example"))
+
+            paths = extract_directory(inputs, extractor, output_directory=output, schema=Resume)
+
+            self.assertEqual(paths, [output / f"{get_sha256_hash('Current resume')}.json"])
+            self.assertEqual(len(list(output.glob("*.json"))), 2)
+
+    @patch("rolematch.cli.sleep")
+    @patch("rolematch.cli.compare_saved_extractions", return_value={"score": 60.0})
+    def test_batch_compares_every_current_pair_and_reports_progress(self, compare, sleep):
+        resumes = [Path("resume1.json"), Path("resume2.json")]
+        jobs = [Path("job1.json"), Path("job2.json")]
+        stdout, stderr = StringIO(), StringIO()
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            compare_pairs(resumes, jobs, Path("reports"))
+
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertEqual([item.args for item in compare.call_args_list], [
+            (resumes[0], jobs[0]), (resumes[0], jobs[1]),
+            (resumes[1], jobs[0]), (resumes[1], jobs[1]),
+        ])
+        self.assertTrue(all(item.kwargs["output_directory"] == Path("reports") for item in compare.call_args_list))
+        self.assertEqual(sleep.call_count, 3)
+        self.assertIn("4 reports saved", stderr.getvalue())
+        self.assertIn("60.00%", stderr.getvalue())
+
+    @patch("rolematch.cli.sleep")
+    @patch("rolematch.cli.compare_saved_extractions")
+    def test_batch_with_no_pairs_skips_comparison(self, compare, sleep):
+        for resumes, jobs in [([], [Path("job.json")]), ([Path("resume.json")], [])]:
+            compare_pairs(resumes, jobs, Path("reports"))
+        compare.assert_not_called()
+        sleep.assert_not_called()
+
+    @patch("rolematch.cli.compare_saved_extractions", return_value={"score": None})
+    def test_batch_reports_unassessable_score(self, compare):
+        stderr = StringIO()
+        with redirect_stderr(stderr):
+            compare_pairs([Path("resume.json")], [Path("job.json")], Path("reports"))
+        self.assertIn("no assessable requirements", stderr.getvalue())
 
     @patch("rolematch.cli.sleep")
     @patch("rolematch.cli.read_document")

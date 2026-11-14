@@ -4,10 +4,44 @@ from tempfile import TemporaryDirectory
 import unittest
 
 from rolematch.schemas import JobDescription, Resume
-from rolematch.storage import get_sha256_hash, load_extraction, save_extraction
+from rolematch.storage import get_sha256_hash, load_extraction, save_comparison, save_extraction
 
 
 class StorageTests(unittest.TestCase):
+    def make_report(self, resume_text: str = "Resume", jd_text: str = "JD") -> dict:
+        return {
+            "score": 60.0,
+            "sources": {
+                "resume": {"text_hash": get_sha256_hash(resume_text)},
+                "job_description": {"text_hash": get_sha256_hash(jd_text)},
+            },
+        }
+
+    def test_comparison_round_trip_and_pair_identity(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            report = self.make_report()
+            first = save_comparison(report, root)
+            self.assertEqual(json.loads(first.read_text(encoding="utf-8")), report)
+            updated = {**report, "score": 75.0}
+            self.assertEqual(save_comparison(updated, root), first)
+            self.assertEqual(json.loads(first.read_text(encoding="utf-8"))["score"], 75.0)
+            changed = save_comparison(self.make_report(jd_text="Changed JD"), root)
+            swapped = save_comparison(self.make_report(resume_text="JD", jd_text="Resume"), root)
+            self.assertEqual(len({first, changed, swapped}), 3)
+            self.assertEqual(len(list(root.glob("*.json"))), 3)
+
+    def test_failed_report_write_preserves_previous_file_and_cleans_temporary_file(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            report = self.make_report()
+            path = save_comparison(report, root)
+            original = path.read_bytes()
+            with self.assertRaises(ValueError):
+                save_comparison({**report, "score": float("nan")}, root)
+            self.assertEqual(path.read_bytes(), original)
+            self.assertEqual(list(root.glob("*.tmp")), [])
+
     def test_known_sha256(self):
         self.assertEqual(
             get_sha256_hash("hello"),

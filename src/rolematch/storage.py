@@ -2,6 +2,7 @@ import hashlib
 import json
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
@@ -37,7 +38,6 @@ def save_extraction(
     text: str, source: Path, result: BaseModel, directory: Path
 ) -> Path:
     """Save validated data atomically, using the exact text's hash as the filename."""
-    directory.mkdir(parents=True, exist_ok=True)
     text_hash = get_sha256_hash(text)
     path = directory / f"{text_hash}.json"
     record = {
@@ -46,13 +46,30 @@ def save_extraction(
         "text": text,
         "data": result.model_dump(mode="json"),
     }
+    return _save_json(record, path)
+
+
+def save_comparison(report: dict[str, Any], directory: Path) -> Path:
+    """Save one report per ordered resume/JD text-hash pair, replacing prior output."""
+    sources = report["sources"]
+    pair_key = json.dumps([
+        sources["resume"]["text_hash"],
+        sources["job_description"]["text_hash"],
+    ])
+    path = directory / f"{get_sha256_hash(pair_key)}.json"
+    return _save_json(report, path)
+
+
+def _save_json(record: dict[str, Any], path: Path) -> Path:
+    """Atomically write JSON without exposing an incomplete destination file."""
+    path.parent.mkdir(parents=True, exist_ok=True)
     temporary_path = None
     try:
         with NamedTemporaryFile(
-            mode="w", encoding="utf-8", dir=directory, suffix=".tmp", delete=False
+            mode="w", encoding="utf-8", dir=path.parent, suffix=".tmp", delete=False
         ) as file:
             temporary_path = Path(file.name)
-            json.dump(record, file, indent=2, ensure_ascii=False)
+            json.dump(record, file, indent=2, ensure_ascii=False, allow_nan=False)
         temporary_path.replace(path)
     finally:
         if temporary_path is not None:

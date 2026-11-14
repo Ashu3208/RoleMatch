@@ -22,7 +22,7 @@ flowchart LR
 - [x] Build requirement-level matching with evidence and coverage checks; verified with mocked tests.
 - [x] Build and commit a separate frontend prototype: comparison board, uploads, filters, and an evidence inspector.
 
-The frontend is on `frontend` and uses sample data. Matching exists on `main` but is not connected to the CLI yet.
+The frontend is on `frontend` and uses sample data. The CLI on `main` now runs extraction, matching, scoring, and report saving for the current input documents.
 
 ## Scoring — implemented
 
@@ -36,9 +36,13 @@ The scorer returns a percentage rounded to two decimals, or no score when there 
 
 ### 1. Complete the comparison workflow — next
 
-- [ ] Try matching with real resumes and JDs and inspect the evidence.
-- [ ] Connect extraction, matching, and scoring for one pair, then multiple pairs.
-- [ ] Save comparison reports with requirement-level and required/preferred score breakdowns; reuse results when appropriate.
+- [x] Try matching with real resumes and JDs and inspect the evidence.
+- [x] Connect saved extractions, matching, and scoring for one pair; verify the complete report with mocked LLM responses.
+- [x] Extend comparison to multiple current-document pairs and connect it to the CLI; verify with mocked tests.
+- [x] Save complete comparison reports atomically, identified by both source documents.
+- [ ] Add per-requirement and required/preferred score contributions to reports.
+- [ ] Reuse valid comparisons with appropriate processing-version checks.
+- [ ] Refine matching explanations to preserve example qualifiers and avoid unsupported experience estimates.
 - [ ] Keep requirement references clear and avoid counting the same condition twice.
 
 ### 2. Connect the frontend

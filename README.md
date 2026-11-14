@@ -4,7 +4,7 @@ Evidence-based resume and job description matching.
 
 ## Current status
 
-Extracts structured resume and job-description data using Groq and Pydantic validation. Uses PyMuPDF for PDFs and also supports DOCX documents and plain-text JDs. Evidence-backed matching and weighted scoring are available as functions; connecting them to the CLI is pending.
+Extracts resume and job-description information, matches requirements to resume evidence, and calculates weighted scores. The CLI processes PDF/DOCX resumes and PDF/DOCX/plain-text JDs, then saves a report for each current resume–JD pair.
 
 See [ROADMAP.md](ROADMAP.md) for completed work, the current task, and upcoming milestones, including the personal knowledge hub and RAG-assisted resume suggestions.
 
@@ -29,6 +29,8 @@ uv run rolematch
 Reads subdirectories and shows progress and per-directory summaries. Hidden, unsupported, and empty files are skipped. Extracted JSON is saved to disk rather than printed.
 
 Extractions are saved as `<text_hash>.json` in `data/extraction/Resume/` and `data/extraction/JD/`. Unchanged text reuses valid saved data without an LLM call. Delete affected cache files after changing prompts or models to force re-extraction.
+
+Comparison reports are saved in `data/reports/`, identified by both documents' text hashes. Comparisons are recomputed on each run and replace the previous report for the same pair; historical extraction files are not automatically included.
 
 ## Tests
 

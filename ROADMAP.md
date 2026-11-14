@@ -20,9 +20,8 @@ flowchart LR
 - [x] Save extractions and reuse valid results instead of repeating work.
 - [x] Process document folders with visible CLI progress.
 - [x] Build requirement-level matching with evidence and coverage checks; verified with mocked tests.
-- [x] Build and commit a separate frontend prototype: comparison board, uploads, filters, and an evidence inspector.
 
-The frontend is on `frontend` and uses sample data. The CLI on `main` now runs extraction, matching, scoring, and report saving for the current input documents.
+The repository separates the working CLI in `backend/` from a React + TypeScript app in `frontend/`, which is under development before API integration.
 
 ## Scoring — implemented
 
@@ -34,7 +33,7 @@ The scorer returns a percentage rounded to two decimals, or no score when there 
 
 ## Next milestones
 
-### 1. Complete the comparison workflow — next
+### 1. Comparison workflow — CLI MVP complete
 
 - [x] Try matching with real resumes and JDs and inspect the evidence.
 - [x] Connect saved extractions, matching, and scoring for one pair; verify the complete report with mocked LLM responses.
@@ -45,12 +44,21 @@ The scorer returns a percentage rounded to two decimals, or no score when there 
 - [ ] Refine matching explanations to preserve example qualifiers and avoid unsupported experience estimates.
 - [ ] Keep requirement references clear and avoid counting the same condition twice.
 
-### 2. Connect the frontend
+### 2. Rebuild and connect the frontend — next
 
 - [ ] Finalize the UI direction.
+- [ ] Build the document library, comparison details, and history screens.
+- [ ] Expose the existing backend workflow through FastAPI.
 - [ ] Connect uploads, comparisons, processing progress, and real results.
 - [ ] Show score breakdowns, evidence, gaps, and downloadable reports.
 - [ ] Check the complete workflow on desktop and mobile.
+
+### Accounts and persistence
+
+- [ ] Add sign-up/sign-in and private user workspaces.
+- [ ] Store document metadata and comparison history in a database, with private file storage.
+- [ ] Preserve document versions and allow users to manage or delete their data.
+- [ ] Import selected Google Drive files, then support checking for updates; background sync comes later.
 
 ### 3. Build the personal knowledge hub
 

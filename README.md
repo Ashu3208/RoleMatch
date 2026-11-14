@@ -2,38 +2,37 @@
 
 Evidence-based resume and job description matching.
 
-## Current status
+The backend CLI extracts document information, compares resume evidence against job requirements, calculates weighted scores, and saves reports. The React + TypeScript frontend is being rebuilt; API integration is pending.
 
-Extracts resume and job-description information, matches requirements to resume evidence, and calculates weighted scores. The CLI processes PDF/DOCX resumes and PDF/DOCX/plain-text JDs, then saves a report for each current resume–JD pair.
+- [Backend](backend/README.md): document processing, CLI, and tests.
+- [Frontend](frontend/README.md): development, builds, and linting.
+- [Roadmap](ROADMAP.md): completed work and planned features.
 
-See [ROADMAP.md](ROADMAP.md) for completed work, the current task, and upcoming milestones, including the personal knowledge hub and RAG-assisted resume suggestions.
+## Run the backend
 
-## Setup
-
-Requires Python 3.14+ and uv.
-
-Run from the project root:
+Requires Python 3.14+ and uv. From the repository root:
 
 ```bash
+cd backend
 uv sync
 ```
 
-For LLM calls, copy `.env.example` to `.env` and set `GROQ_API_KEY`.
+Inside `backend/`, copy `.env.example` to `.env` and set `GROQ_API_KEY`. Place resumes in `data/Resume/` and job descriptions in `data/JD/` within that directory.
 
-Place resumes in `data/Resume/` and job descriptions in `data/JD/`, then run:
+From the `backend` directory:
 
 ```bash
 uv run rolematch
 ```
 
-Reads subdirectories and shows progress and per-directory summaries. Hidden, unsupported, and empty files are skipped. Extracted JSON is saved to disk rather than printed.
+## Run the frontend
 
-Extractions are saved as `<text_hash>.json` in `data/extraction/Resume/` and `data/extraction/JD/`. Unchanged text reuses valid saved data without an LLM call. Delete affected cache files after changing prompts or models to force re-extraction.
-
-Comparison reports are saved in `data/reports/`, identified by both documents' text hashes. Each assessment includes evidence, reasoning, and earned/possible points, alongside overall and required/preferred totals. Comparisons are recomputed on each run and replace the previous report for the same pair; historical extraction files are not automatically included.
-
-## Tests
+Requires Node.js and npm. In a separate terminal, from the repository root:
 
 ```bash
-uv run python -m unittest discover -s tests -v
+cd frontend
+npm install
+npm run dev
 ```
+
+Open the URL printed by Vite.

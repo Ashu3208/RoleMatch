@@ -30,7 +30,7 @@ Reads subdirectories and shows progress and per-directory summaries. Hidden, uns
 
 Extractions are saved as `<text_hash>.json` in `data/extraction/Resume/` and `data/extraction/JD/`. Unchanged text reuses valid saved data without an LLM call. Delete affected cache files after changing prompts or models to force re-extraction.
 
-Comparison reports are saved in `data/reports/`, identified by both documents' text hashes. Comparisons are recomputed on each run and replace the previous report for the same pair; historical extraction files are not automatically included.
+Comparison reports are saved in `data/reports/`, identified by both documents' text hashes. Each assessment includes evidence, reasoning, and earned/possible points, alongside overall and required/preferred totals. Comparisons are recomputed on each run and replace the previous report for the same pair; historical extraction files are not automatically included.
 
 ## Tests
 

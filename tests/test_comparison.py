@@ -60,8 +60,19 @@ class ComparisonTests(unittest.TestCase):
         self.assertEqual(report["score"], 60.0)
         self.assertEqual(report["earned_points"], 3.0)
         self.assertEqual(report["possible_points"], 5)
-        self.assertEqual(report["assessments"], self.response["assessments"])
+        self.assertEqual(report["assessments"], [
+            {**self.response["assessments"][0], "earned_points": 2.0, "possible_points": 2},
+            {**self.response["assessments"][1], "earned_points": 1.0, "possible_points": 2},
+            {**self.response["assessments"][2], "earned_points": 0.0, "possible_points": 1},
+        ])
         self.assertEqual(report["summary"], self.response["summary"])
+        self.assertEqual(report["required_totals"], {
+            "earned_points": 3.0, "possible_points": 4,
+        })
+        self.assertEqual(report["preferred_totals"], {
+            "earned_points": 0.0, "possible_points": 1,
+        })
+        self.assertNotIn("per_requirement_breakdown", report)
 
     @patch("rolematch.matcher.call_llm")
     def test_saved_pair_produces_report_with_source_references(self, call):
@@ -79,6 +90,9 @@ class ComparisonTests(unittest.TestCase):
             self.assertEqual(report["sources"]["resume"]["text_hash"], resume_path.stem)
             self.assertEqual(report["sources"]["job_description"]["text_hash"], jd_path.stem)
             self.assertEqual(len(report["assessments"]), 3)
+            self.assertEqual(report["assessments"][0]["earned_points"], 2.0)
+            self.assertEqual(report["assessments"][0]["evidence"], ["Built Python services."])
+            self.assertNotIn("per_requirement_breakdown", report)
             reports = list(reports_directory.glob("*.json"))
             self.assertEqual(len(reports), 1)
             self.assertEqual(json.loads(reports[0].read_text(encoding="utf-8")), report)

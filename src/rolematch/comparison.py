@@ -13,7 +13,7 @@ def compare(
 ) -> dict[str, Any]:
     """Return requirement assessments, evidence, summary, and calculated score."""
     result = match_resume_to_job(resume, jd, resume_text)
-    return {**result.model_dump(mode="json"), **get_score(result)}
+    return {"summary": result.summary, **get_score(result)}
 
 
 def _read_extraction(path: Path) -> dict[str, Any]:

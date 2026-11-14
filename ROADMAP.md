@@ -55,7 +55,8 @@ The scorer returns a percentage rounded to two decimals, or no score when there 
 
 ### Accounts and persistence
 
-- [ ] Add sign-up/sign-in and private user workspaces.
+- [x] Add Google sign-in, restore saved browser sessions, and sign out; verify frontend behavior with mocked auth tests.
+- [ ] Add GitHub sign-in and private user workspaces with backend authorization.
 - [ ] Store document metadata and comparison history in a database, with private file storage.
 - [ ] Preserve document versions and allow users to manage or delete their data.
 - [ ] Import selected Google Drive files, then support checking for updates; background sync comes later.

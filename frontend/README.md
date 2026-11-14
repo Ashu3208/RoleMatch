@@ -13,6 +13,8 @@ npm run dev
 
 Open the URL printed by Vite.
 
+For Supabase, copy `.env.example` to `.env` and set the project URL and publishable key. Restart the dev server after changing environment values.
+
 ## Checks and production preview
 
 ```bash

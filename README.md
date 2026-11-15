@@ -2,7 +2,7 @@
 
 Evidence-based resume and job description matching.
 
-The backend CLI extracts document information, compares resume evidence against job requirements, calculates weighted scores, and saves reports. The React + TypeScript frontend is being rebuilt; API integration is pending.
+The backend CLI extracts document information, compares resume evidence against job requirements, calculates weighted scores, and saves reports. The React + TypeScript frontend supports Google sign-in and a profile page connected to FastAPI. Document processing integration is pending.
 
 - [Backend](backend/README.md): document processing, CLI, and tests.
 - [Frontend](frontend/README.md): development, builds, and linting.
@@ -25,6 +25,8 @@ From the `backend` directory:
 uv run rolematch
 ```
 
+For the web app, configure Supabase as described in the [backend guide](backend/README.md) and start the API with `uv run server` from `backend/`.
+
 ## Run the frontend
 
 Requires Node.js and npm. In a separate terminal, from the repository root:
@@ -35,4 +37,4 @@ npm install
 npm run dev
 ```
 
-Open the URL printed by Vite.
+Configure `frontend/.env` using the [frontend guide](frontend/README.md), then open the URL printed by Vite.

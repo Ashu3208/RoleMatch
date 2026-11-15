@@ -46,6 +46,7 @@ The scorer returns a percentage rounded to two decimals, or no score when there 
 
 ### 2. Rebuild and connect the frontend — next
 
+- [x] Add account/profile navigation and load the protected profile from FastAPI with a bearer token; verify navigation and signed-out behavior in the browser, and authenticated requests with mocked tests.
 - [ ] Finalize the UI direction.
 - [ ] Build the document library, comparison details, and history screens.
 - [ ] Expose the existing backend workflow through FastAPI.
@@ -56,6 +57,7 @@ The scorer returns a percentage rounded to two decimals, or no score when there 
 ### Accounts and persistence
 
 - [x] Add Google sign-in, restore saved browser sessions, and sign out; verify frontend behavior with mocked auth tests.
+- [x] Verify Supabase access tokens and protect `/me`; test valid and invalid requests using local signing keys and mocked JWKS responses.
 - [ ] Add GitHub sign-in and private user workspaces with backend authorization.
 - [ ] Store document metadata and comparison history in a database, with private file storage.
 - [ ] Preserve document versions and allow users to manage or delete their data.
